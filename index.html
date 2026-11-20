@@ -91,6 +91,14 @@ label.f{display:block;font-size:13px;color:var(--mut);font-weight:600;margin:10p
 svg text{fill:var(--mut);font-size:10px}
 .kv{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:15px}
 .kv b{text-align:right}
+.exgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.extile{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:10px 4px 9px;font-size:13px;font-weight:600;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;line-height:1.2;text-align:center;min-height:74px;justify-content:center}
+.extile span{font-size:24px}
+.extile:active{background:var(--soft)}
+.ent .k.plus-k{color:var(--acc2)}
+.fabs{position:fixed;right:max(18px,calc(50% - 262px));bottom:calc(78px + env(safe-area-inset-bottom));z-index:6;display:flex;flex-direction:column;align-items:center;gap:10px}
+.fabs .fab{position:static}
+.fab2{width:46px;height:46px;border-radius:50%;border:0;background:var(--card);box-shadow:0 4px 14px rgba(0,0,0,.18);font-size:22px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -238,12 +246,13 @@ function ringSvg(eaten,tgt){const R=52,C=2*Math.PI*R,pct=Math.min(eaten/tgt,1),o
   <circle cx="64" cy="64" r="${R}" fill="none" stroke="${over?'var(--warn)':'var(--acc)'}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C*pct} ${C}" transform="rotate(-90 64 64)"/>
   <text x="64" y="62" text-anchor="middle" style="font-size:26px;font-weight:800;fill:var(--fg)">${fmt(Math.abs(tgt-eaten))}</text>
   <text x="64" y="82" text-anchor="middle" style="font-size:12px">${over?'kcal over':'kcal left'}</text></svg>`}
-function renderToday(){const k=DAY,t=dayTot(k),tg=target(),log=S.log[k]||[];
+function renderToday(){const k=DAY,t=dayTot(k),base=target(),exc=dayExCredit(k),tg=base+exc,log=S.log[k]||[];
   const mt={p:tg*0.3/4,c:tg*0.4/4,f:tg*0.3/9};
   let h=`<div class="top"><button class="ib" onclick="go('#/today/${addDays(k,-1)}')" aria-label="Previous day">‹</button><h1 onclick="pickDate()" style="cursor:pointer">${nice(k,1)}</h1><button class="ib" onclick="go('#/today/${addDays(k,1)}')" aria-label="Next day">›</button></div>`;
   if(!plan()&&!S.profile.override)h+=`<div class="card" style="background:var(--soft)"><h2>👋 Set up your goal</h2><div class="sm">Enter your weight, height and goal weight to get a personal daily calorie target. Until then the target is 2,000 kcal.</div><button class="btn" style="margin-top:10px" onclick="go('#/goal')">Set goal</button></div>`;
   h+=`<div class="card"><div class="ring">${ringSvg(t.k,tg)}<div class="stats">
-    <div class="stat"><span class="mut">Target</span><b>${fmt(tg)}</b></div>
+    <div class="stat"><span class="mut">Target</span><b>${fmt(base)}</b></div>
+    ${exc?`<div class="stat"><span class="mut">Exercise</span><b style="color:var(--acc2)">+${fmt(exc)}</b></div>`:''}
     <div class="stat"><span class="mut">Eaten</span><b>${fmt(t.k)}</b></div>
     <div class="stat"><span class="mut">${t.k>tg?'Over':'Remaining'}</span><b style="color:${t.k>tg?'var(--warn)':'var(--acc)'}">${fmt(Math.abs(tg-t.k))}</b></div></div></div>
     <div class="mac">${[['p','Protein'],['c','Carbs'],['f','Fat']].map(([m,n])=>`<div>${n}<b>${Math.round(t[m])} <span class="mut sm" style="font-weight:400">/ ${Math.round(mt[m])}g</span></b><div class="bar"><i style="width:${Math.min(100,t[m]/mt[m]*100)}%;background:var(--${m})"></i></div></div>`).join('')}</div></div>`;
@@ -252,9 +261,13 @@ function renderToday(){const k=DAY,t=dayTot(k),tg=target(),log=S.log[k]||[];
     h+=`<div class="card" id="meal-${m}"><h2>${i} ${n}<span class="r">${es.length?fmt(mk)+' kcal':''}</span></h2>`;
     for(const e of es)h+=`<div class="ent" onclick="editEntry('${e.id}')"><div class="n"><div>${esc(e.name)}</div><div class="mut sm">${esc(e.amt||'')}</div></div><div class="k">${fmt(e.k)}</div></div>`;
     h+=`<div class="addrow"><button class="lnk" onclick="openAdd('${m}')">＋ Add food</button>${!es.length&&ye.length?`<button class="lnk" style="color:var(--mut)" onclick="copyMeal('${m}')">↻ Same as yesterday (${fmt(ye.reduce((a,e)=>a+e.k,0))})</button>`:''}</div></div>`}
+  const exs=dayExList(k);
+  h+=`<div class="card" id="exercise"><h2>🏃 Exercise<span class="r">${exs.length?'+'+fmt(exc)+' kcal':''}</span></h2>`;
+  for(const e of exs){const A=ACTM.get(e.a);h+=`<div class="ent" onclick="editEx('${e.id}')"><div class="n"><div>${A?A[2]+' ':''}${esc(e.name)}</div><div class="mut sm">${esc(exLabel(e))}</div></div><div class="k plus-k">+${fmt(e.k*(S.profile.exCredit??1))}</div></div>`}
+  h+=`<div class="addrow"><button class="lnk" onclick="openEx()">＋ Add exercise</button></div></div>`;
   const w=S.weights[k];
   h+=`<div class="card"><h2>⚖️ Weight<span class="r">${w?w+' kg':''}</span></h2><div style="display:flex;gap:8px"><input class="t" id="wIn" type="number" step="0.1" inputmode="decimal" placeholder="${curWeight()?'Last: '+curWeight()+' kg':'kg'}" value="${w||''}"><button class="btn" onclick="logWeight('${k}',$('#wIn').value)">${w?'Update':'Log'}</button></div></div>`;
-  $('#app').innerHTML=h+`<button class="fab" onclick="openAdd()" aria-label="Add food">＋</button>`}
+  $('#app').innerHTML=h+`<div class="fabs"><button class="fab2" onclick="openEx()" aria-label="Add exercise" title="Add exercise">🏃</button><button class="fab" onclick="openAdd()" aria-label="Add food">＋</button></div>`}
 function pickDate(){const i=document.createElement('input');i.type='date';i.value=DAY;i.style.cssText='position:fixed;opacity:0;top:40px;left:50%';document.body.appendChild(i);i.onchange=()=>{if(i.value)go('#/today/'+i.value);i.remove()};i.onblur=()=>setTimeout(()=>i.remove(),500);try{i.showPicker()}catch(e){i.focus();i.click()}}
 function copyMeal(m){const ye=(S.log[addDays(DAY,-1)]||[]).filter(e=>e.m===m);(S.log[DAY]??=[]).push(...ye.map(e=>({...e,id:uid()})));save();renderToday();toast(`Copied ${ye.length} item${ye.length>1?'s':''}`)}
 function logWeight(k,v){v=parseFloat(v);if(!(v>20&&v<400))return toast('Enter a weight in kg');if(!k)k=dk();S.weights[k]=r1(v);save();toast('Weight saved');route()}
@@ -262,7 +275,7 @@ function logWeight(k,v){v=parseFloat(v);if(!(v>20&&v<400))return toast('Enter a 
 /* ---------- ADD SHEET ---------- */
 let SH=null;
 function openAdd(m,opts={}){SH={mode:'log',m:m||guessMeal(),q:'',sel:null,svi:0,qty:1,...opts};if(SH.sel)selectFood(SH.sel,SH.amt);else renderSheet()}
-function closeSheet(){SH=null;$('#sheet').innerHTML='';document.body.style.overflow=''}
+function closeSheet(){SH=null;EX=null;$('#sheet').innerHTML='';document.body.style.overflow=''}
 function mealChips(fn){return`<div class="scroll-x" style="flex:1">${MEALS.map(([m,n])=>`<button class="chip ${SH.m===m?'on':''}" onclick="SH.m='${m}';${fn}()">${n}</button>`).join('')}</div>`}
 function renderSheet(){if(!SH)return;document.body.style.overflow='hidden';let h='';
   if(SH.view==='quick')return quickForm();
@@ -294,7 +307,7 @@ function drawResults(){const el=$('#sres');if(!el)return;const q=SH.q.trim(),pic
   else{const rec=Object.entries(S.recent).sort((a,b)=>b[1].t-a[1].t).map(([r])=>getFood(r)).filter(f=>f&&!(pick&&f.recipe)).slice(0,20);
     if(!pick&&S.recipes.length)h+=`<div class="sec">My recipes</div>`+S.recipes.slice(0,6).map(r=>rowHtml(recipeFood(r))).join('');
     h+=rec.length?`<div class="sec">Recent</div>`+rec.map(rowHtml).join(''):`<div class="mut sm" style="padding:10px 2px">Type to search ${DB.length} common foods${S.foods.length?' and your own':''}.${pick?'':' Tap <b>+</b> to log a food instantly with its usual serving, or tap the name to choose the amount.'}</div>`}
-  h+=`<div class="sec">More</div>${pick?'':`<div class="row" onclick="SH.view='quick';renderSheet()"><div class="n"><b>⚡ Quick add calories</b><span class="mut sm">Just enter a number</span></div></div>`}
+  h+=`<div class="sec">More</div>${pick?'':`<div class="row" onclick="openEx()"><div class="n"><b>🏃 Log exercise</b><span class="mut sm">Adds to your calorie budget</span></div></div><div class="row" onclick="SH.view='quick';renderSheet()"><div class="n"><b>⚡ Quick add calories</b><span class="mut sm">Just enter a number</span></div></div>`}
    <div class="row" onclick="newFoodFromSheet()"><div class="n"><b>＋ Create a food${q?` “${esc(q)}”`:''}</b><span class="mut sm">From a nutrition label</span></div></div>`;
   el.innerHTML=h}
 function rowHtml(f){const a=defAmt(f),k=f.k*amtG(f,a.svi,a.q)/100;
@@ -324,6 +337,92 @@ function saveQuick(){const k=parseFloat($('#qk').value);if(!(k>=0))return toast(
   const e={id:SH.entryId||uid(),m:SH.m,ref:null,name:nm,g:0,amt:'Quick add',k,p:v('#qp'),c:v('#qc'),f:v('#qf')},list=(S.log[DAY]??=[]);
   if(SH.qe){const i=list.findIndex(x=>x.id===SH.entryId);list[i]=e}else list.push(e);save();closeSheet();if(onToday())renderToday();else go('#/today/'+DAY);toast('Saved')}
 function newFoodFromSheet(){PENDING={name:SH.q.trim(),ret:SH.mode==='pick'?SH:null,m:SH.m};go('#/food/new')}
+
+/* ---------- EXERCISE ---------- */
+// MET values from the Compendium of Physical Activities (Ainsworth et al.), light / moderate / vigorous.
+const ACTS=[
+['run','Running','🏃',[8.3,9.8,11.8],['Easy jog, about 8 km/h (7:30 /km)','Steady, about 10 km/h (6:00 /km)','Fast, about 12 km/h (5:00 /km)']],
+['volley','Volleyball','🏐',[3.0,4.0,6.0],['Casual hit-around','Social game','Competitive indoor match']],
+['badm','Badminton','🏸',[4.5,5.5,7.0],['Casual rally','Social doubles or singles','Competitive match']],
+['swim','Swimming','🏊',[6.0,8.3,9.8],['Leisurely laps','Steady freestyle','Fast or hard laps']],
+['cycle','Cycling','🚴',[5.8,8.0,10.0],['Easy, under 16 km/h','Moderate, 19–22 km/h','Fast, 22–26 km/h']],
+['walk','Walking','🚶',[3.0,4.3,5.3],['Leisurely, about 4 km/h','Brisk, about 5.5 km/h','Very brisk or hilly']],
+['dog','Walking the dog','🐕',[3.0,3.5,4.5],['Strolling, lots of stops','Steady walk','Brisk or hilly']],
+['beachvb','Beach volleyball','🏖️',[6.0,8.0,9.0],['Casual','Social game','Competitive']],
+['tennis','Tennis','🎾',[5.0,7.3,8.0],['Casual doubles','General play','Competitive singles']],
+['gym','Weight training','🏋️',[3.5,5.0,6.0],['Light weights, long rests','Moderate effort','Heavy, short rests']],
+['hiit','HIIT / circuit class','🔥',[4.3,8.0,10.0],['Easy circuit','Moderate intervals','All-out intervals']],
+['spin','Spin / exercise bike','🚲',[5.5,7.0,8.8],['Easy pace','Moderate effort','Hard effort']],
+['row','Rowing machine','🚣',[4.8,7.0,8.5],['Easy','Moderate','Hard']],
+['ellip','Elliptical / cross-trainer','🔄',[4.0,5.0,6.8],['Easy','Moderate','Hard']],
+['hike','Hiking','🥾',[5.3,6.0,7.8],['Easy trail','Hilly trail','Steep, or with a heavy pack']],
+['yoga','Yoga / Pilates','🧘',[2.5,3.0,4.0],['Gentle or stretching','Hatha or Pilates','Power or vinyasa']],
+['basket','Basketball','🏀',[4.5,6.5,8.0],['Shooting around','Casual game','Competitive game']],
+['soccer','Soccer / football','⚽',[5.0,7.0,10.0],['Kick-around','Casual game','Competitive match']],
+['tt','Table tennis','🏓',[3.0,4.0,5.5],['Casual','Social game','Competitive']],
+['squash','Squash','🟢',[7.3,9.0,12.0],['Casual','Social game','Competitive']],
+['box','Boxing / martial arts','🥊',[5.5,7.8,10.3],['Bag work, easy','Pads or drills','Sparring']],
+['skip','Skipping rope','🪢',[8.8,11.8,12.3],['Slow','Moderate','Fast']],
+['stairs','Stair climbing','🪜',[4.0,6.5,8.8],['Slow','Steady','Fast']],
+['dance','Dancing','💃',[3.0,5.0,7.8],['Slow or social','General dancing','Fast or aerobic dance']],
+['golf','Golf','⛳',[3.5,4.3,4.8],['Using a cart','Walking, pull buggy','Walking, carrying clubs']],
+['surf','Surfing','🏄',[3.0,5.0,6.0],['Casual paddle','General surfing','Competitive']],
+['ski','Skiing / snowboarding','⛷️',[4.3,5.3,8.0],['Easy runs','Moderate','Hard or racing']],
+['garden','Gardening / housework','🌱',[2.5,3.5,5.0],['Light tidying','General gardening','Digging or heavy work']],
+['other','Other (enter calories)','✏️',[0,0,0],['','','']],
+];
+const ACTM=new Map(ACTS.map(a=>[a[0],a]));
+const EFF=[['l','Light'],['m','Moderate'],['h','Vigorous']];
+const effIdx=e=>({l:0,m:1,h:2}[e]??1);
+S.ex??={};S.exRecent??={};S.profile.exCredit??=1;
+const exKg=()=>curWeight()||75;
+// net calories (MET − 1): the resting part is already in your daily target. Matches "active calories" on watches.
+function exKcal(a,eff,min){const A=ACTM.get(a);if(!A)return 0;return Math.max(0,A[3][effIdx(eff)]-1)*exKg()*min/60}
+const dayExList=k=>S.ex[k]||[];
+const dayExBurn=k=>dayExList(k).reduce((s,e)=>s+(e.k||0),0);
+const dayExCredit=k=>Math.round(dayExBurn(k)*(S.profile.exCredit??1));
+const budget=k=>target()+dayExCredit(k);
+let EX=null;
+function openEx(opts={}){SH=null;EX={view:'list',...opts};renderEx()}
+function exPick(a){const r=S.exRecent[a]||{};EX={...EX,view:'detail',a,min:r.min||(a==='run'?30:60),eff:r.eff||'m',ov:''};renderEx()}
+function renderEx(){if(!EX)return;document.body.style.overflow='hidden';let h;
+  if(EX.view==='list'){const rec=Object.entries(S.exRecent).sort((a,b)=>b[1].t-a[1].t).map(([a])=>ACTM.get(a)).filter(Boolean).slice(0,6);
+    const tile=A=>`<button class="extile" onclick="exPick('${A[0]}')"><span>${A[2]}</span>${esc(A[1])}</button>`;
+    h=`<div class="sh-head"><b style="flex:1;font-size:18px">🏃 Log exercise</b><button class="ib" onclick="closeSheet()" aria-label="Close">✕</button></div><div class="sh-body">
+      ${rec.length?`<div class="sec" style="margin-top:0">Recent</div><div class="exgrid">${rec.map(tile).join('')}</div>`:''}
+      <div class="sec"${rec.length?'':' style="margin-top:0"'}>Activities</div><div class="exgrid">${ACTS.map(tile).join('')}</div></div>`;
+    $('#sheet').innerHTML=`<div class="sheet-bg" onclick="closeSheet()"></div><div class="sheet tall">${h}</div>`;return}
+  const A=ACTM.get(EX.a),other=EX.a==='other',edit=!!EX.entryId;
+  h=`<div class="sh-head">${edit?'':`<button class="ib" onclick="EX.view='list';renderEx()" aria-label="Back">‹</button>`}<b style="flex:1;font-size:18px">${A[2]} ${esc(other?(EX.name||'Exercise'):A[1])}</b><button class="ib" onclick="closeSheet()" aria-label="Close">✕</button></div><div class="sh-body">
+   ${other?`<label class="f" style="margin-top:0">Activity name</label><input class="t" id="exName" value="${esc(EX.name||'')}" placeholder="e.g. Bushwalk" oninput="EX.name=this.value">`:''}
+   <div class="sec"${other?'':' style="margin-top:0"'}>Duration</div>
+   <div class="chips">${[15,20,30,45,60,90].map(m=>`<button class="chip ${EX.min==m?'on':''}" onclick="EX.min=${m};renderEx()">${m} min</button>`).join('')}</div>
+   <div class="step" style="margin-top:10px"><button onclick="EX.min=Math.max(5,EX.min-5);renderEx()" aria-label="Less">−</button><input class="t" id="exMin" type="number" inputmode="numeric" value="${EX.min}" oninput="EX.min=Math.max(0,parseInt(this.value)||0);drawExK()"><button onclick="EX.min=EX.min+5;renderEx()" aria-label="More">+</button></div>
+   <div class="c mut sm" style="margin-top:4px">minutes</div>
+   ${other?'':`<div class="sec">Effort</div><div class="seg" style="margin-bottom:4px">${EFF.map(([e,n])=>`<button class="${EX.eff===e?'on':''}" onclick="EX.eff='${e}';renderEx()">${n}</button>`).join('')}</div>
+   <div class="mut sm c">${esc(A[4][effIdx(EX.eff)])}</div>`}
+   <div class="card" style="margin-top:12px;background:var(--soft)" id="exK"></div>
+   <label class="f">${other?'Calories burned':'Calories from your watch (optional)'}</label>
+   <input class="t" id="exOv" type="number" inputmode="numeric" placeholder="${other?'kcal':'Use the estimate'}" value="${EX.ov||''}" oninput="EX.ov=this.value;drawExK()">
+   ${other?'':`<div class="mut sm" style="margin-top:4px">If your watch shows “Active calories”, you can enter that instead.</div>`}
+   ${curWeight()?'':`<div class="warnbox">Estimate assumes 75 kg. Log your weight for a more accurate number.</div>`}
+  </div><div style="padding-top:10px"><button class="btn w" onclick="saveEx()">${edit?'Save changes':'Add exercise'}</button>
+   ${edit?`<div style="display:flex;gap:8px;margin-top:8px"><button class="btn d" style="flex:1" onclick="delEx()">Delete</button><button class="btn g" style="flex:1" onclick="dupEx()">Log again</button></div>`:''}</div>`;
+  $('#sheet').innerHTML=`<div class="sheet-bg" onclick="closeSheet()"></div><div class="sheet">${h}</div>`;drawExK()}
+function exVal(){const ov=parseFloat(EX.ov);return ov>=0&&EX.ov!==''?ov:exKcal(EX.a,EX.eff,EX.min)}
+function drawExK(){const el=$('#exK');if(!el)return;const k=exVal(),c=S.profile.exCredit??1;
+  el.innerHTML=`<div style="display:flex;align-items:flex-end;gap:12px"><div><div class="big">${fmt(k)}</div><div class="mut sm">kcal burned${EX.ov!==''&&EX.ov!=null&&parseFloat(EX.ov)>=0?' (your number)':' (estimate)'}</div></div>
+   <div style="flex:1;text-align:right" class="sm">Adds <b style="color:var(--acc2)">+${fmt(k*c)}</b> to ${nice(DAY).toLowerCase()==='today'?"today's":esc(nice(DAY))+"'s"} budget${c<1?`<div class="mut">(${Math.round(c*100)}% of exercise calories)</div>`:''}</div></div>`}
+function saveEx(){const A=ACTM.get(EX.a);if(!(EX.min>0)&&EX.a!=='other')return toast('Enter a duration');const k=exVal();if(!(k>=0)||(EX.a==='other'&&!(parseFloat(EX.ov)>=0)))return toast('Enter calories burned');
+  const name=EX.a==='other'?((EX.name||'').trim()||'Exercise'):A[1];
+  const e={id:EX.entryId||uid(),a:EX.a,name,min:EX.min,eff:EX.a==='other'?null:EX.eff,k:Math.round(k),ov:EX.ov!==''&&EX.ov!=null&&parseFloat(EX.ov)>=0};
+  const list=(S.ex[DAY]??=[]);if(EX.entryId){const i=list.findIndex(x=>x.id===EX.entryId);if(i>=0)list[i]=e}else list.push(e);
+  if(EX.a!=='other')S.exRecent[EX.a]={min:EX.min,eff:EX.eff,t:Date.now()};
+  const edit=!!EX.entryId;save();closeSheet();if(onToday())renderToday();else go('#/today/'+DAY);toast(edit?'Saved':`+${fmt(e.k*(S.profile.exCredit??1))} kcal added to budget`)}
+function editEx(id){const e=dayExList(DAY).find(x=>x.id===id);if(!e)return;SH=null;EX={view:'detail',entryId:id,a:ACTM.has(e.a)?e.a:'other',name:e.name,min:e.min,eff:e.eff||'m',ov:(e.ov||e.a==='other')?String(e.k):''};renderEx()}
+function delEx(){S.ex[DAY]=dayExList(DAY).filter(x=>x.id!==EX.entryId);save();closeSheet();renderToday();toast('Deleted')}
+function dupEx(){const e=dayExList(DAY).find(x=>x.id===EX.entryId);S.ex[DAY].push({...e,id:uid()});save();closeSheet();renderToday();toast('Logged again')}
+function exLabel(e){return[e.min?e.min+' min':'',e.eff?EFF[effIdx(e.eff)][1].toLowerCase():'',e.ov?'your number':''].filter(Boolean).join(' · ')}
 
 /* ---------- FOODS TAB ---------- */
 function renderFoods(){let h=`<div class="top"><h1 class="l">Foods</h1></div><div class="seg">${[['mine','My foods'],['rec','Recipes'],['db','Database']].map(([k,n])=>`<button class="${FTAB===k?'on':''}" onclick="FTAB='${k}';renderFoods()">${n}</button>`).join('')}</div>`;
@@ -414,7 +513,7 @@ function weightChart(){const d=weightDates();if(!d.length)return`<div class="mut
   s+=pts.map(p=>`<circle cx="${X(p[0])}" cy="${Y(p[1])}" r="3" fill="var(--card)" stroke="var(--acc2)" stroke-width="1.5"/>`).join('');return s+'</svg>'}
 function calChart(){const tg=target(),days=[...Array(14)].map((_,i)=>addDays(dk(),i-13)),vals=days.map(k=>dayTot(k).k),mx=Math.max(tg*1.3,...vals),W=340,H=140,B=18,bw=W/14;
   let s=`<svg viewBox="0 0 ${W} ${H}" width="100%">`;
-  days.forEach((k,i)=>{const v=vals[i],h=(H-B-6)*v/mx;if(v)s+=`<rect x="${i*bw+3}" y="${H-B-h}" width="${bw-6}" height="${h}" rx="3" fill="${v>tg*1.05?'var(--warn)':'var(--acc)'}" opacity="${k===dk()?1:.75}" onclick="go('#/today/${k}')" style="cursor:pointer"/>`;
+  days.forEach((k,i)=>{const v=vals[i],h=(H-B-6)*v/mx;if(v)s+=`<rect x="${i*bw+3}" y="${H-B-h}" width="${bw-6}" height="${h}" rx="3" fill="${v>budget(k)*1.05?'var(--warn)':'var(--acc)'}" opacity="${k===dk()?1:.75}" onclick="go('#/today/${k}')" style="cursor:pointer"/>`;
     s+=`<text x="${i*bw+bw/2}" y="${H-5}" text-anchor="middle">${'SMTWTFS'[pd(k).getDay()]}</text>`});
   const ty=H-B-(H-B-6)*tg/mx;s+=`<line x1="0" x2="${W}" y1="${ty}" y2="${ty}" stroke="var(--fg)" stroke-dasharray="4 4" opacity=".5"/>`;return s+'</svg>'}
 function renderProgress(){const p=S.profile,d=weightDates(),cur=curWeight(),st=d.length?S.weights[d[0]]:null,tr=trend(),pl=plan();
@@ -430,8 +529,10 @@ function renderProgress(){const p=S.profile,d=weightDates(),cur=curWeight(),st=d
     <div style="display:flex;gap:8px;margin-top:10px"><input class="t" id="wd" type="date" value="${dk()}" style="flex:1.3;min-width:0"><input class="t" id="wv" type="number" step="0.1" inputmode="decimal" placeholder="kg" style="flex:1;min-width:0"><button class="btn" onclick="logWeight($('#wd').value,$('#wv').value)">Log</button></div>
     ${d.length?`<details style="margin-top:10px"><summary class="mut sm" style="cursor:pointer">All weigh-ins (${d.length})</summary>${d.slice().reverse().map((k,i,a)=>{const prev=a[i+1]?S.weights[a[i+1]]:null,df=prev!=null?r1(S.weights[k]-prev):null;return`<div class="kv"><span>${nice(k,1)}</span><span><b>${S.weights[k]} kg</b> <span class="mut sm" style="display:inline-block;width:46px;text-align:right">${df==null?'':(df>0?'+':'')+df}</span><button class="x" aria-label="Delete" onclick="delete S.weights['${k}'];save();renderProgress()">✕</button></span></div>`}).join('')}</details>`:''}</div>`;
   const wk=[...Array(7)].map((_,i)=>addDays(dk(),-i)).filter(k=>(S.log[k]||[]).length),avg=wk.length?wk.reduce((a,k)=>a+dayTot(k).k,0)/wk.length:0;
+  const d7=[...Array(7)].map((_,i)=>addDays(dk(),-i)),exw=d7.reduce((a,k)=>a+dayExBurn(k),0),exn=d7.reduce((a,k)=>a+dayExList(k).length,0),exAvg=wk.length?wk.reduce((a,k)=>a+dayExBurn(k),0)/wk.length:0;
   h+=`<div class="card"><h2>🔥 Calories, last 14 days</h2>${calChart()}<div class="kv"><span class="mut">7-day average (days logged)</span><b>${wk.length?fmt(avg)+' kcal':'—'}</b></div><div class="kv"><span class="mut">Daily target</span><b>${fmt(target())} kcal</b></div><div class="kv"><span class="mut">Days logged, last 7</span><b>${wk.length} / 7</b></div>
-   ${pl&&wk.length?`<div class="kv"><span class="mut">Est. ${avg<pl.tdee?'deficit':'surplus'} vs maintenance</span><b>${fmt(Math.abs(pl.tdee-avg))} kcal/day ≈ ${r1(Math.abs(pl.tdee-avg)*7/7700)} kg/wk</b></div>`:''}</div>`;
+   <div class="kv"><span class="mut">Exercise, last 7 days</span><b>${exn?fmt(exw)+' kcal · '+exn+' session'+(exn>1?'s':''):'—'}</b></div>
+   ${pl&&wk.length?(()=>{const net=pl.tdee+exAvg-avg;return`<div class="kv"><span class="mut">Est. ${net>0?'deficit':'surplus'} vs maintenance${exAvg?' (incl. exercise)':''}</span><b>${fmt(Math.abs(net))} kcal/day ≈ ${r1(Math.abs(net)*7/7700)} kg/wk</b></div>`})():''}</div>`;
   $('#app').innerHTML=h}
 
 /* ---------- GOAL ---------- */
@@ -440,7 +541,9 @@ function renderGoal(){const p=S.profile,cur=curWeight();
   <div class="card"><div class="seg" style="margin:0 0 4px">${[['m','Male'],['f','Female']].map(([k,n])=>`<button class="${p.sex===k?'on':''}" onclick="gSet('sex','${k}')">${n}</button>`).join('')}</div>
    <div class="grid3"><div><label class="f">Age</label><input class="t" id="gAge" type="number" inputmode="numeric" value="${p.age||''}" oninput="gSet('age',+this.value||null)"></div><div><label class="f">Height cm</label><input class="t" id="gH" type="number" inputmode="decimal" value="${p.height||''}" oninput="gSet('height',+this.value||null)"></div><div><label class="f">Weight kg</label><input class="t" id="gW" type="number" step="0.1" inputmode="decimal" value="${cur||''}" onchange="if(+this.value>20){S.weights[dk()]=r1(+this.value);save();drawGoal()}"></div></div>
    <label class="f">Activity level</label><select class="t" id="gAct" onchange="gSet('activity',+this.value)">${[[1.2,'Sedentary — desk job, little exercise'],[1.375,'Light — exercise 1–3 days/week'],[1.55,'Moderate — exercise 3–5 days/week'],[1.725,'Very active — hard exercise 6–7 days/week'],[1.9,'Athlete — physical job + training']].map(([v,n])=>`<option value="${v}" ${p.activity==v?'selected':''}>${n}</option>`).join('')}</select>
+   <div class="mut sm" style="margin-top:4px">Exercise you log is added on top of this, so if you log your workouts, choose the level that describes your day <i>without</i> them (usually Sedentary or Light).</div>
    <div class="grid2"><div><label class="f">Goal weight kg</label><input class="t" id="gGoal" type="number" step="0.1" inputmode="decimal" value="${p.goal||''}" oninput="gSet('goal',+this.value||null)"></div><div><label class="f">Pace</label><select class="t" id="gRate" onchange="gSet('rate',+this.value)">${[[0.25,'0.25 kg / week'],[0.5,'0.5 kg / week'],[0.75,'0.75 kg / week'],[1,'1 kg / week']].map(([v,n])=>`<option value="${v}" ${p.rate==v?'selected':''}>${n}</option>`).join('')}</select></div></div></div>
+  <div class="card"><label class="f" style="margin-top:0">Exercise calories added to your budget</label><select class="t" onchange="S.profile.exCredit=+this.value;save();toast('Saved')">${[[1,'100% (all of it)'],[0.75,'75%'],[0.5,'50% (conservative)'],[0,'None (track only)']].map(([v,n])=>`<option value="${v}" ${(p.exCredit??1)==v?'selected':''}>${n}</option>`).join('')}</select><div class="mut sm" style="margin-top:6px">Estimates of calories burned tend to run high. If weight loss is slower than planned, try 50–75%.</div></div>
   <div id="gres"></div>`;drawGoal()}
 function gSet(k,v){S.profile[k]=v;save();if(k==='sex')renderGoal();else drawGoal()}
 function drawGoal(){const pl=plan(),p=S.profile;let h='';
@@ -458,15 +561,15 @@ function drawGoal(){const pl=plan(),p=S.profile;let h='';
 function renderSettings(){const n=Object.values(S.log).reduce((a,l)=>a+l.length,0);
   $('#app').innerHTML=`<div class="top"><h1 class="l">Settings</h1></div>
   <div class="row" onclick="go('#/goal')"><div class="n"><b>🎯 Goal & profile</b><span class="mut sm">${fmt(target())} kcal/day${S.profile.goal?' · goal '+S.profile.goal+' kg':''}</span></div><span class="mut">›</span></div>
-  <div class="card" style="margin-top:12px"><h2>💾 Your data</h2><div class="mut sm">Everything is stored privately in this browser (${n} log entries, ${S.foods.length} foods, ${S.recipes.length} recipes, ${weightDates().length} weigh-ins). Phone and computer keep separate copies — use Export / Import to move or back up.</div>
+  <div class="card" style="margin-top:12px"><h2>💾 Your data</h2><div class="mut sm">Everything is stored privately in this browser (${n} log entries, ${S.foods.length} foods, ${S.recipes.length} recipes, ${weightDates().length} weigh-ins, ${Object.values(S.ex).reduce((a,l)=>a+l.length,0)} workouts). Phone and computer keep separate copies — use Export / Import to move or back up.</div>
    <div style="display:flex;gap:8px;margin-top:10px"><button class="btn g" style="flex:1" onclick="exportData()">Export backup</button><label class="btn g" style="flex:1;text-align:center;cursor:pointer">Import backup<input type="file" accept=".json,application/json" style="display:none" onchange="importData(this)"></label></div>
    <button class="btn d w" style="margin-top:10px" onclick="if(confirm('Erase ALL data in this browser? Export a backup first if unsure.')&&confirm('Really erase everything?')){localStorage.removeItem(KEY);location.reload()}">Erase all data</button></div>
   <div class="card"><h2>📱 Install on your phone</h2><div class="sm mut">iPhone: open this page in Safari → Share → <b>Add to Home Screen</b>. It then opens full-screen like an app.</div></div>
-  <div class="card"><h2>ℹ️ About</h2><div class="sm mut">${DB.length} built-in foods. General foods use typical values per 100 g/ml from nutrition tables — good for estimating. McDonald's items use McDonald's Australia's official nutrition guides (Oct 2025 – Jul 2026 editions); limited-time items are marked. Packaged products vary, so for things you eat often, create your own food from the label. The calorie target uses the Mifflin-St Jeor equation; 1 kg of body fat ≈ 7,700 kcal.</div></div>`}
+  <div class="card"><h2>ℹ️ About</h2><div class="sm mut">${DB.length} built-in foods. General foods use typical values per 100 g/ml from nutrition tables — good for estimating. McDonald's items use McDonald's Australia's official nutrition guides (Oct 2025 – Jul 2026 editions); limited-time items are marked. Exercise calories use standard MET values from the Compendium of Physical Activities × your weight × time, counting only calories above resting (like the “active calories” on a watch). Packaged products vary, so for things you eat often, create your own food from the label. The calorie target uses the Mifflin-St Jeor equation; 1 kg of body fat ≈ 7,700 kcal.</div></div>`}
 function exportData(){const b=new Blob([JSON.stringify(S)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`calorie-tracker-backup-${dk()}.json`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000)}
 function importData(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.log||!d.profile)throw 0;if(!confirm('Replace the data in this browser with this backup?'))return;localStorage.setItem(KEY,JSON.stringify(d));location.reload()}catch(e){alert('That file is not a calorie tracker backup.')}};r.readAsText(f)}
 
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&SH)closeSheet()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&(SH||EX))closeSheet()});
 route();
 </script>
 </body>
