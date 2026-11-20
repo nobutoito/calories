@@ -17,6 +17,8 @@
 @media (prefers-color-scheme:dark){:root{--bg:#101412;--card:#1a201c;--fg:#e7ece8;--mut:#98a29c;--line:#2a322d;--acc:#51cf66;--acc2:#51cf66;--soft:#1d3223;--sh:none;--p:#748ffc;--c:#fcc419;--f:#f06595}}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+html{min-height:100%}body{min-height:100vh;min-height:100lvh}
+#app{min-height:100vh;min-height:100lvh;box-sizing:border-box}
 button,input,select,textarea{font:inherit;color:inherit}
 #app{max-width:560px;margin:0 auto;padding:0 14px calc(150px + env(safe-area-inset-bottom))}
 .top{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;gap:8px;padding:12px 0 10px;padding-top:calc(12px + env(safe-area-inset-top))}
